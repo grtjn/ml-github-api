@@ -49,17 +49,17 @@ declare private function github:search-repos($q as xs:string, $page as xs:int) a
 
 declare function github:get-readme($repo as object-node()) as text()? {
   let $file-base := github:file-base($repo)
-  let $file := github:http-get-text(concat($file-base, "README.md")) (: 7 mln counts on google :)
-  let $file :=
-    if ($file) then
-      $file
-    else
-      github:http-get-text(concat($file-base, "README.rst")) (: 17 k counts on google :)
-  return
-    if ($file) then
-      $file
-    else
-      github:http-get-text(concat($file-base, "README.mdown")) (: 7 k counts on google :)
+  let $extensions := (
+    ".md", (: 7 mln counts on google :)
+    "", (: 1.7 mln counts on google :)
+    ".txt", (: 470 k counts on google :)
+    ".markdown", (: 85 k counts on google :)
+    ".ext", (: 55 k counts on google :)
+    ".rst", (: 17 k counts on google :)
+    ".mdown" (: 7 k counts on google :)
+  )
+  let $files := $extensions ! concat($file-base, "README", .)
+  return github:http-get-text($files)
 };
 
 declare function github:get-package($repo as object-node()) as object-node()? {
@@ -80,14 +80,28 @@ declare function github:get-mlpm($repo as object-node()) as object-node()? {
   )
 };
 
+declare function github:get-user($name as xs:string) as object-node()? {
+  github:http-get(
+    concat("https://api.github.com/users/", $name)
+  )/object-node()
+};
+
 (: Used for getting raw json files from github. Github returns them as text/plain,
    so we need to convert to json object ourselves.. :)
 declare private function github:http-get-json($url as xs:string) as object-node()? {
-  xdmp:unquote((github:http-get-text($url), "")[1])/object-node()
+  let $text := github:http-get-text($url)
+  where $text
+  return xdmp:unquote($text)/object-node()
 };
 
-declare private function github:http-get-text($url as xs:string) as text()? {
-  github:http-get($url)/text()
+declare private function github:http-get-text($urls as xs:string*) as text()? {
+  let $text := github:http-get($urls[1])/text()
+  return
+    if ($text) then
+      $text
+    else if ($urls[2]) then
+      github:http-get-text(subsequence($urls, 2))
+    else ()
 };
 
 declare private function github:http-get($url as xs:string) as document-node()? {

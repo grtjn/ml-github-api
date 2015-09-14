@@ -15,7 +15,7 @@ $ mlpm deploy
 
 ## Usage
 
-The usage of this library is shown below with a working code example. Note that running below code could take a few minutes, and does inserts into your database:
+The usage of this library is shown below with a working code example. Note that running below code could take a minute or 10, and does inserts into your database:
 
 ```xquery
 xquery version "1.0-ml";
@@ -29,6 +29,7 @@ let $readme := github:get-readme($repo)
 let $package := github:get-package($repo)
 let $bower := github:get-bower($repo)
 let $mlpm := github:get-mlpm($repo)
+let $user := github:get-user($repo/owner/login)
 
 let $wrapped := object-node {
   "repo": $repo,
@@ -36,6 +37,7 @@ let $wrapped := object-node {
   "package": if ($package) then $package else null-node{},
   "bower":   if ($bower)   then $bower   else null-node{},
   "mlpm":    if ($mlpm)    then $mlpm    else null-node{},
+  "user":    if ($user)    then $user    else null-node{},
   "type":
     if ($mlpm) then
       "mlpm"
