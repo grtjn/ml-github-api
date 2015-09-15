@@ -22,6 +22,10 @@ xquery version "1.0-ml";
 
 import module namespace github = "http://marklogic.com/github-api" at "/ext/mlpm_modules/ml-github-api/github-api.xqy";
 
+let $_ := github:set-oauth-keys("myclientid","myclientsecret")
+
+let $users := map:map()
+
 for $repo in
   github:search-repos("marklogic%20in:name,description,readme%20fork:false")
 
@@ -29,11 +33,22 @@ let $readme := github:get-readme($repo)
 let $package := github:get-package($repo)
 let $bower := github:get-bower($repo)
 let $mlpm := github:get-mlpm($repo)
-let $user := github:get-user($repo/owner/login)
+let $license := github:get-normalized-license(($package, $bower, $mlpm))
+
+let $owner := $repo/owner/login
+let $user := map:get($users, $owner)
+let $user :=
+  if ($user) then
+    $user
+  else
+    let $user := github:get-user($owner)
+    let $_ := map:put($users, $owner, $user)
+    return $user
 
 let $wrapped := object-node {
   "repo": $repo,
   "readme":  if ($readme)  then $readme  else null-node{},
+  "license": if ($license) then $license else null-node{},
   "package": if ($package) then $package else null-node{},
   "bower":   if ($bower)   then $bower   else null-node{},
   "mlpm":    if ($mlpm)    then $mlpm    else null-node{},
