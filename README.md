@@ -68,3 +68,5 @@ let $repo-uri := concat("/", $repo/full_name, ".json")
 return
   xdmp:document-insert($repo-uri, $wrapped)
 ```
+
+Note: a full blown copy is also included in the source of this package, see `update-repos.xqy`.
