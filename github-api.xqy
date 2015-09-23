@@ -132,7 +132,7 @@ declare private function github:http-get($url as xs:string) as document-node()? 
     if ($response[1]//*:x-ratelimit-remaining = 0) then
       (: rate limit reached, sleep till reset time, to make sure we won't exceed the limit.. :)
       let $now-utc := (current-dateTime() - xs:dateTime("1970-01-01T00:00:00")) div xs:dayTimeDuration("PT1S")
-      let $sec-until-reset := number($response[1]//*:x-ratelimit-reset) - $now-utc
+      let $sec-until-reset := xs:unsignedInt(number($response[1]//*:x-ratelimit-reset) - $now-utc)
       let $_ := xdmp:log(concat("Rate limit reached, sleeping for ", $sec-until-reset, " sec.."))
       let $_ := xdmp:sleep($sec-until-reset * 1000)
       return
