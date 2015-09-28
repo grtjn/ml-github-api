@@ -63,10 +63,14 @@ declare function github:get-readme($repo as object-node()) as text()? {
     ".txt", (: 470 k counts on google :)
     ".markdown", (: 85 k counts on google :)
     ".ext", (: 55 k counts on google :)
+    ".textile", (: 22 k counts on google :)
     ".rst", (: 17 k counts on google :)
     ".mdown" (: 7 k counts on google :)
   )
-  let $files := $extensions ! concat($file-base, "README", .)
+  let $files := (
+    $extensions ! concat($file-base, "README", .),
+    $extensions ! concat($file-base, "readme", .),
+  )
   return github:http-get-text($files)
 };
 
