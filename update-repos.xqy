@@ -1,6 +1,7 @@
 xquery version "1.0-ml";
 
 import module namespace github = "http://marklogic.com/github-api" at "/ext/mlpm_modules/ml-github-api/github-api.xqy";
+import module namespace config = "http://marklogic.com/github-search/config" at "/app/config/config.xqy";
 
 declare default function namespace "http://www.w3.org/2005/xpath-functions";
 
@@ -20,6 +21,10 @@ xdmp:set-request-time-limit(1800), (: 30 min. :)
 
 let $_ := github:set-oauth-keys("##myclientid##","##myclientsecret##")
 :)
+let $_ :=
+  if ($config:github-clientid != "" and $config:github-clientsecret != "") then
+    github:set-oauth-keys($config:github-clientid, $config:github-clientsecret)
+  else ()
 
 let $repos :=
   try {
@@ -52,11 +57,11 @@ return
 
       let $item := object-node {
         "type":
-          if ($mlpm) then
+          if ($mlpm and (empty($mlpm/private) or not($mlpm/private))) then
             "mlpm"
-          else if ($bower) then
+          else if ($bower and (empty($bower/private) or not($bower/private))) then
             "bower"
-          else if ($package) then
+          else if ($package and (empty($package/private) or not($package/private))) then
             "npm"
           else
             "other",
