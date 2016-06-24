@@ -9,6 +9,7 @@ declare option xdmp:mapping "false";
 
 declare variable $i external;
 declare variable $repos external;
+declare variable $last external;
 
 xdmp:set-request-time-limit(1800), (: 30 min. :)
 
@@ -28,8 +29,14 @@ let $_ :=
 
 let $repos :=
   try {
-    $repos
+    json:array-values($repos)
   } catch ($ignore) {}
+let $last :=
+  try {
+    $last
+  } catch ($ignore) {
+    false()
+  }
 
 return
   if ($repos) then
@@ -37,13 +44,14 @@ return
     let $_ := xdmp:log(concat("Processing batch ", $i, ".."))
     let $_ :=
       let $users := map:map()
-      for $repo in json:array-values($repos)
+      for $repo in $repos
 
-      let $readme := github:get-readme($repo)
-      let $package := github:get-package($repo)
-      let $bower := github:get-bower($repo)
-      let $mlpm := github:get-mlpm($repo)
-      let $license := github:get-normalized-license(($package, $bower, $mlpm))
+      let $gist := $repo/gist
+      let $readme := if ($gist) then () else github:get-readme($repo)
+      let $package := if ($gist) then () else github:get-package($repo)
+      let $bower := if ($gist) then () else github:get-bower($repo)
+      let $mlpm := if ($gist) then () else github:get-mlpm($repo)
+      let $license := if ($gist) then () else github:get-normalized-license(($package, $bower, $mlpm))
 
       let $owner := $repo/owner/login
       let $user := map:get($users, $owner)
@@ -57,7 +65,9 @@ return
 
       let $item := object-node {
         "type":
-          if ($mlpm and (empty($mlpm/private) or not($mlpm/private))) then
+          if ($gist) then
+            "gist"
+          else if ($mlpm and (empty($mlpm/private) or not($mlpm/private))) then
             "mlpm"
           else if ($bower and (empty($bower/private) or not($bower/private))) then
             "bower"
@@ -71,30 +81,49 @@ return
         "bower": if ($bower) then $bower else null-node{},
         "package": if ($package) then $package else null-node{},
         "repo": $repo,
-        "user": if ($user) then $user else null-node{}
+        "user": if ($user) then $user else null-node{},
+        "refreshed_at": string(current-dateTime())
       }
 
-      return
+      let $uri := concat("/", $repo/full_name, ".json")
+      let $_ :=
         xdmp:document-insert(
-          concat("/", $repo/full_name, ".json"),
+          $uri,
           $item,
           (xdmp:permission("github-search-role", "read"), xdmp:permission("github-search-role", "update")),
           ("data", "data/github")
         )
-    let $_ := xdmp:log(concat("Done processing batch ", $i, ".."))
+      return xdmp:log(concat("Batch ", $i, ": added ", $uri, ".."))
+    let $_ := xdmp:log(concat("Done processing batch ", $i, " in ", xdmp:elapsed-time(), ".."))
+    where $last
     return
-      xdmp:elapsed-time()
+      (: flush stale repositories :)
+      let $recent := current-dateTime() - xs:dayTimeDuration("P7D") (: 1 week old :)
+      for $repo in collection('data/github')
+      let $refreshed := $repo/refreshed_at/xs:dateTime(.)
+      where empty($refreshed) or $refreshed lt $recent
+      return
+        xdmp:document-delete(base-uri($repo))
   else
     (: search and dispatch :)
-    let $repos := github:search-repos("marklogic%20in:name,description,readme%20fork:false")
+    let $repos :=
+      for $repo in (
+        github:search-repos("marklogic in:name,description,readme fork:false"),
+        github:search-gists("marklogic anon:true")
+      )
+      order by $repo/full_name
+      return $repo
     let $total := count($repos)
     let $batch-size := 100
     let $nr-batches := ceiling($total div $batch-size)
 
-    for $i in (1 to $nr-batches)
-    let $end := $batch-size * $i
-    let $start := $end - $batch-size + 1
-    let $batch := subsequence($repos, $batch-size * ($i - 1) + 1, $batch-size)
-    let $_ := xdmp:log(concat("Spawning batch ", $i, ".."))
+    let $_ :=
+      for $i in (1 to $nr-batches)
+      let $end := $batch-size * $i
+      let $start := $end - $batch-size + 1
+      let $batch := subsequence($repos, $batch-size * ($i - 1) + 1, $batch-size)
+      let $_ := xdmp:log(concat("Spawning batch ", $i, ".."))
+      return
+        xdmp:spawn("update-repos.xqy", (xs:QName("repos"), json:to-array($batch), xs:QName("i"), $i, xs:QName("last"), $i eq $nr-batches))
     return
-      xdmp:spawn("update-repos.xqy", (xs:QName("repos"), json:to-array($batch), xs:QName("i"), $i))
+      xdmp:log(concat("Done spawning ", $nr-batches, " batches in ", xdmp:elapsed-time(), ".."))
