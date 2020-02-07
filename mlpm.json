@@ -1,6 +1,6 @@
 {
   "name": "ml-github-api",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "MarkLogic library for querying the Github API",
   "repository": "https://github.com/grtjn/ml-github-api.git"
 }

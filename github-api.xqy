@@ -11,12 +11,22 @@ declare option xdmp:mapping "false";
 declare private variable $client-id := ();
 declare private variable $client-secret := ();
 
-declare private variable $http-options :=
+(: BASIC auth is required now, generate options dynamically : )
+(: https://developer.github.com/changes/2019-11-05-deprecated-passwords-and-authorizations-api/#authenticating-using-query-parameters :)
+declare private function github:http-options() {
   <o:options xmlns:o="xdmp:http-get" xmlns="xdmp:document-get">
     <encoding>auto</encoding>
     <repair>full</repair>
+    {
+      if (exists($client-id) and exists($client-secret)) then
+        <authentication method="basic">
+          <username>{$client-id}</username>
+          <password>{$client-secret}</password>
+        </authentication>
+      else ()
+    }
   </o:options>
-;
+};
 
 declare function github:set-oauth-keys($id, $secret) {
   xdmp:set($client-id, $id),
@@ -25,12 +35,12 @@ declare function github:set-oauth-keys($id, $secret) {
 
 declare function github:search-repos($q as xs:string) as object-node()* {
   let $items := map:map()
-  
+
   (: get rid of duplicates :)
   let $_ :=
     for $item in github:search-repos($q, 1)
     return map:put($items, $item/full_name, $item)
-  
+
   for $name in map:keys($items)
   return map:get($items, $name)
 };
@@ -59,12 +69,12 @@ declare private function github:search-repos($q as xs:string, $page as xs:int) a
 
 declare function github:search-gists($q as xs:string) as object-node()* {
   let $items := map:map()
-  
+
   (: get rid of duplicates :)
   let $_ :=
     for $item in github:search-gists($q, 1)
     return map:put($items, $item/full_name, $item)
-  
+
   for $name in map:keys($items)
   return map:get($items, $name)
 };
@@ -206,13 +216,7 @@ declare private function github:http-get($url as xs:string) as document-node()? 
   let $sleep := xdmp:sleep(250) (: 250 msec courtesy sleep.. :)
   let $response :=
     try {
-      if (starts-with($url, "https://api.github.com") and $client-id and $client-secret) then
-        let $url :=
-          concat($url, if (contains($url, "?")) then "&amp;" else "?", "client_id=", $client-id, "&amp;client_secret=", $client-secret)
-        return
-          xdmp:http-get($url, $http-options)
-      else
-        xdmp:http-get($url, $http-options)
+      xdmp:http-get($url, github:http-options())
     } catch ($error) {
       xdmp:log((concat("Github get failed for ", $url, ":"), $error)) (: log error message :)
     }
