@@ -1,5 +1,12 @@
 # Change Log
 
+## [0.0.9](https://github.com/grtjn/ml-github-api/tree/0.0.9) (2020-02-07)
+[Full Changelog](https://github.com/grtjn/ml-github-api/compare/0.0.8...0.0.9)
+
+**Implemented enhancements:**
+
+- Auth request params deprecated [\#13](https://github.com/grtjn/ml-github-api/issues/13)
+
 ## [0.0.8](https://github.com/grtjn/ml-github-api/tree/0.0.8) (2016-06-24)
 [Full Changelog](https://github.com/grtjn/ml-github-api/compare/0.0.7...0.0.8)
 
