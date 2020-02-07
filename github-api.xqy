@@ -11,7 +11,7 @@ declare option xdmp:mapping "false";
 declare private variable $client-id := ();
 declare private variable $client-secret := ();
 
-(: BASIC auth is required now, generate options dynamically : )
+(: BASIC auth is required now, generate options dynamically :)
 (: https://developer.github.com/changes/2019-11-05-deprecated-passwords-and-authorizations-api/#authenticating-using-query-parameters :)
 declare private function github:http-options() {
   <o:options xmlns:o="xdmp:http-get" xmlns="xdmp:document-get">
