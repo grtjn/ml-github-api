@@ -14,12 +14,12 @@ declare private variable $client-secret := ();
 (: BASIC auth is required now, generate options dynamically :)
 (: https://developer.github.com/changes/2019-11-05-deprecated-passwords-and-authorizations-api/#authenticating-using-query-parameters :)
 declare private function github:http-options() {
-  <o:options xmlns:o="xdmp:http-get" xmlns="xdmp:document-get">
+  <o:options xmlns:o="xdmp:http" xmlns="xdmp:document-get">
     <encoding>auto</encoding>
     <repair>full</repair>
     {
       if (exists($client-id) and exists($client-secret)) then
-        <authentication method="basic">
+        <authentication xmlns="xdmp:http" method="basic">
           <username>{$client-id}</username>
           <password>{$client-secret}</password>
         </authentication>
